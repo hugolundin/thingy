@@ -1,22 +1,19 @@
 #define __AVR_ATmega328P__
 #include <avr/io.h>
 #include <avr/sleep.h>
+#include <stdio.h>
 #include <util/delay.h>
+
+#include "robot.h"
 
 int main(void)
 {
-    // make the LED pin an output for PORTB5
-    DDRB = 1 << 5;
-
-    while (1)
-    {
-        _delay_ms(500);
-
-        // toggle the LED
-        PORTB ^= 1 << 5;
+    if (!robot_init()) {
+        ABORT();
     }
 
-    sleep_cpu();
+    printf("hello world!\n");
 
-    return 0;
+    sleep_cpu();
+    VERIFY_NOT_REACHED();
 }

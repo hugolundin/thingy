@@ -1,0 +1,1 @@
+simavr -m atmega328p -f 8000000 ../build/robot/main-atmega328.hex

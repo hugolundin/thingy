@@ -7,6 +7,7 @@
 # return. (I don't like beer much.)
 #
 # Matthias Kleemann
+# (Modified by Hugo Lundin, 2021)
 ##########################################################################
 
 cmake_minimum_required(VERSION 3.21)
@@ -41,7 +42,9 @@ set(AVR_L_FUSE 0xc3)
 ##########################################################################
 # name your project
 ##########################################################################
-project(AVR-EXAMPLE)
+project(ROBOT C)
+
+set(CMAKE_C_STANDARD 99)
 
 ##########################################################################
 # status messages
@@ -70,7 +73,7 @@ set(MCU_SPEED "4000000UL")
 # some cmake cross-compile necessities
 ##########################################################################
 
-set(ENV{AVR_FIND_ROOT_PATH} /usr/local/opt/avr-gcc)
+# set(ENV{AVR_FIND_ROOT_PATH} /usr/local/opt/avr-gcc)
 
 if(DEFINED ENV{AVR_FIND_ROOT_PATH})
     set(CMAKE_FIND_ROOT_PATH $ENV{AVR_FIND_ROOT_PATH})
@@ -126,7 +129,7 @@ add_definitions("-DF_CPU=${MCU_SPEED}")
 add_definitions("-fpack-struct")
 add_definitions("-fshort-enums")
 add_definitions("-Wall")
-# add_definitions("-Werror")
+add_definitions("-Werror")
 add_definitions("-pedantic")
 add_definitions("-pedantic-errors")
 add_definitions("-funsigned-char")
@@ -151,4 +154,13 @@ add_subdirectory(robot)
 # add_avr_executable(test_breaks_generation)
 # add_avr_library(mytestlib_breaks_generation)
 
+##########################################################################
+# custom commands
+##########################################################################
 
+# add_custom_command(
+#   DEPENDS main
+#   COMMAND ${CMAKE_ROOT}/meta/run_simulation
+#   COMMAND ${CMAKE_COMMAND} -E touch simulation.stamp
+#   OUTPUT simulation.stamp
+# )

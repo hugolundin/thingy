@@ -1,7 +1,5 @@
 add_avr_executable(
    main
    main.c
+   robot.c
 )
-
-find_library(C_LIB c)
-message(STATUS "avr-libc: ${C_LIB}")
