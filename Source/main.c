@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <util/delay.h>
 
-#include "robot.h"
+#include "thingy.h"
 
 int main(void)
 {
@@ -12,7 +12,7 @@ int main(void)
         ABORT();
     }
 
-    printf("hello world!\n");
+    printf("hello test!\n");
 
     sleep_cpu();
     VERIFY_NOT_REACHED();

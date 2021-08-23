@@ -12,6 +12,9 @@
 
 cmake_minimum_required(VERSION 3.21)
 
+set (CMAKE_EXPORT_COMPILE_COMMANDS ON)
+message(STATUS "Set CMAKE_EXPORT_COMPILE_COMMANDS to ${CMAKE_EXPORT_COMPILE_COMMANDS}")
+
 ### TOOLCHAIN SETUP AREA #################################################
 # Set any variables used in the toolchain prior project() call. In that
 # case they are already set and used.
@@ -31,19 +34,24 @@ set(AVR_MCU atmega328)
 set(AVR_H_FUSE 0xd9)
 set(AVR_L_FUSE 0xc3)
 
+##########################################################################
+# Toolchain
+##########################################################################
+
+set(CMAKE_TOOLCHAIN_FILE "${CMAKE_SOURCE_DIR}/Meta/CMake/generic-gcc-avr.cmake")
+message(STATUS "Set CMAKE_TOOLCHAIN_FILE to ${CMAKE_TOOLCHAIN_FILE}")
+
 ### END TOOLCHAIN SETUP AREA #############################################
 
 # Intentionally left blank, due to a different approach of using the
 # toolchain file via -DCMAKE_TOOLCHAIN_FILE=path/to/generic-gcc-avr.cmake
 # at the cmake command line call
-#
-# include(../generic-gcc-avr.cmake)
 
 ##########################################################################
 # name your project
 ##########################################################################
-project(ROBOT C)
 
+project(THINGY C)
 set(CMAKE_C_STANDARD 99)
 
 ##########################################################################
@@ -73,8 +81,6 @@ set(MCU_SPEED "4000000UL")
 # some cmake cross-compile necessities
 ##########################################################################
 
-# set(ENV{AVR_FIND_ROOT_PATH} /usr/local/opt/avr-gcc)
-
 if(DEFINED ENV{AVR_FIND_ROOT_PATH})
     set(CMAKE_FIND_ROOT_PATH $ENV{AVR_FIND_ROOT_PATH})
 else(DEFINED ENV{AVR_FIND_ROOT_PATH})
@@ -86,6 +92,8 @@ else(DEFINED ENV{AVR_FIND_ROOT_PATH})
       set(CMAKE_FIND_ROOT_PATH "/usr/lib/avr")
     elseif(EXISTS "/usr/local/CrossPack-AVR")
       set(CMAKE_FIND_ROOT_PATH "/usr/local/CrossPack-AVR")
+    elseif(EXISTS "/usr/local/opt/avr-gcc")
+      set(CMAKE_FIND_ROOT_PATH "/usr/local/opt/avr-gcc")
     else(EXISTS "/opt/local/avr")
       message(FATAL_ERROR "Please set AVR_FIND_ROOT_PATH in your environment.")
     endif(EXISTS "/opt/local/avr")
@@ -146,7 +154,7 @@ add_definitions("-std=gnu99")
 ##########################################################################
 # building library and application in their subdirectories
 ##########################################################################
-add_subdirectory(robot)
+add_subdirectory(Source)
 
 ##########################################################################
 # testing functions w/o source files - gets FATAL_ERROR
@@ -158,9 +166,8 @@ add_subdirectory(robot)
 # custom commands
 ##########################################################################
 
-# add_custom_command(
-#   DEPENDS main
-#   COMMAND ${CMAKE_ROOT}/meta/run_simulation
-#   COMMAND ${CMAKE_COMMAND} -E touch simulation.stamp
-#   OUTPUT simulation.stamp
-# )
+add_custom_target(run
+  COMMAND ${CMAKE_COMMAND} -E env ${CMAKE_SOURCE_DIR}/Meta/run.sh
+  DEPENDS main
+  USES_TERMINAL
+)

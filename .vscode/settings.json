@@ -1,10 +1,5 @@
 {
-    "cmake.configureEnvironment": {
-        "AVR_FIND_ROOT_PATH": "/usr/local/opt/avr-gcc"
-    },
-
     "cmake.configureSettings": {
-        "CMAKE_BUILD_TYPE": "${buildType}",
-        "CMAKE_TOOLCHAIN_FILE": "../meta/cmake/generic-gcc-avr.cmake"
+        "CMAKE_BUILD_TYPE": "Release"
     }
 }
