@@ -68,9 +68,9 @@ message(STATUS "Current L_FUSE is set to: ${AVR_L_FUSE}")
 ##########################################################################
 # set build type
 ##########################################################################
-if(NOT CMAKE_BUILD_TYPE)
-   set(CMAKE_BUILD_TYPE Release)
-endif(NOT CMAKE_BUILD_TYPE)
+#if(NOT CMAKE_BUILD_TYPE)
+   set(CMAKE_BUILD_TYPE Debug)
+#endif(NOT CMAKE_BUILD_TYPE)
 
 ##########################################################################
 # needs to be defined for AVR toolchain
@@ -149,7 +149,15 @@ add_definitions("-std=gnu99")
 ##########################################################################
 # include search paths
 ##########################################################################
-# include_directories(${AVR-EXAMPLE_SOURCE_DIR}/mylib)
+
+find_path(SIMAVR_INCLUDE_DIR
+  NAMES "simavr/avr/avr_mcu_section.h"
+  PATHS /usr/local/include/ /usr/include/
+  NO_CMAKE_FIND_ROOT_PATH
+  REQUIRED
+)
+
+include_directories(${SIMAVR_INCLUDE_DIR})
 
 ##########################################################################
 # building library and application in their subdirectories
@@ -168,6 +176,12 @@ add_subdirectory(Source)
 
 add_custom_target(run
   COMMAND ${CMAKE_COMMAND} -E env ${CMAKE_SOURCE_DIR}/Meta/run.sh
+  DEPENDS main
+  USES_TERMINAL
+)
+
+add_custom_target(debug
+  COMMAND ${CMAKE_COMMAND} -E env ${CMAKE_SOURCE_DIR}/Meta/debug.sh
   DEPENDS main
   USES_TERMINAL
 )
