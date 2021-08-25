@@ -8,20 +8,11 @@ import logging
 import serial
 import sys
 
+from event_queue import EventQueue
+
 # TODO: 
 # - Generic read/write with something else.
 # - Logging colors
-
-UART_EVENT_IN = 0
-UART_EVENT_OUT = 1
-NATS_EVENT_IN = 2
-NATS_EVENT_OUT = 3
-PERIODIC_EVENT = 4
-
-class Event:
-    def __init__(self, category, data):
-        self.category = category
-        self.data = data
 
 COMMAND_LEFT = 0
 COMMAND_RIGHT = 1
@@ -39,18 +30,18 @@ class Command:
         self.command = command
         self.priority = priority
 
-UART_ADDR = 'uart'
+UART_ADDR = '/tmp/uart'
 
-def handle_uart(queue, uart):
+def handle_uart(event_queue, uart):
     data = uart.read_all()
-    asyncio.create_task(queue.put(Event(UART_EVENT_IN, data)))
+    event_queue.insert('UART_EVENT_IN', data)
 
-async def periodic(queue, interval=1):
+async def periodic(event_queue, interval=1):
     while True:
-        await queue.put(Event(PERIODIC_EVENT, 'hi!'))
+        await event_queue.insert('PERIODIC_EVENT', 'hi!')
         await asyncio.sleep(interval)
 
-async def transmission(commands, queue):
+async def transmission(commands, event_queue):
     last_was_left = False
     l = logging.getLogger('transmission')
 
@@ -62,7 +53,7 @@ async def transmission(commands, queue):
 
             if last_was_left:
                 l.debug('Queueing UART_EVENT_OUT')
-                await queue.put(Event(UART_EVENT_OUT, 'left -> right'))
+                await event_queue.insert_async('UART_EVENT_OUT', 'left -> right')
 
         if command.command == COMMAND_LEFT:
             l.debug('COMMAND_LEFT')
@@ -72,7 +63,7 @@ async def transmission(commands, queue):
 
 async def main():
     loop = asyncio.get_event_loop()
-    queue = asyncio.Queue()
+    eq = EventQueue()
     commands = asyncio.Queue()
 
     uart = serial.Serial(
@@ -82,47 +73,48 @@ async def main():
         parity=PARITY_NONE,
         stopbits=STOPBITS_ONE
     )
-    loop.add_reader(uart.fileno(), handle_uart, queue, uart)
 
     nats = Client()
-    await nats.connect('localhost:4222', loop=get_event_loop())
+    await nats.connect('localhost:4222')
+
+    async def uart_event_in(event_queue, data, user_data):
+        logging.debug(f'Received {data}')
+
+    async def uart_event_out(event_queue, data, user_data):
+        uart.write(data.encode())
+
+    async def nats_event_in(event_queue, data, commands):
+        subject = data.subject
+        message = data.data
+
+        if subject == 'transmission.in.left':
+            await commands.put(Command(COMMAND_LEFT, PRIORITY_MANUAL))
+        elif subject == 'transmission.in.right':
+            await commands.put(Command(COMMAND_RIGHT, PRIORITY_MANUAL))
+
+    async def nats_event_out(event_queue, data, user_data):
+        nats.publish('thingy.out', data)
+
+    async def periodic_event(event_queue, data, user_data):
+        print(data)
+
+    eq.register('UART_EVENT_IN', uart_event_in)
+    eq.register('UART_EVENT_OUT', uart_event_out, uart)
+    eq.register('NATS_EVENT_IN', nats_event_in, commands)
+    eq.register('NATS_EVENT_OUT', nats_event_out, nats)
+    eq.register('PERIODIC_EVENT', periodic_event, None)
+
+    loop.add_reader(uart.fileno(), handle_uart, eq, uart)
 
     async def nats_cb(msg):
-        await queue.put(Event(NATS_EVENT_IN, msg))
+        await eq.insert_async('NATS_EVENT_IN', msg)
 
     await nats.subscribe('transmission.in.>', 'workers', nats_cb)
 
-    # asyncio.create_task(periodic(queue, interval=5))
-    asyncio.create_task(transmission(commands, queue))
+    #asyncio.create_task(periodic(eq, interval=5))
+    asyncio.create_task(transmission(commands, eq))
 
-    l = logging.getLogger('main')
-
-    while True:
-        event = await queue.get()
-
-        if event.category == UART_EVENT_OUT:
-            l.debug(f'UART_EVENT_OUT: {event.data}')
-            uart.write(event.data.encode())
-
-        if event.category == UART_EVENT_IN:
-            # Incoming sensor reading
-            pass
-
-        if event.category == NATS_EVENT_OUT:
-            l.debug(f'NATS_EVENT_OUT: {event.data}')
-            nats.publish('thingy.out', event.data)
-
-        if event.category == NATS_EVENT_IN:
-            subject = event.data.subject
-            l.debug(f'NATS_EVENT_IN: {subject}: {event.data.data}')
-
-            if subject == 'transmission.in.left':
-                await commands.put(Command(COMMAND_LEFT, PRIORITY_MANUAL))
-            elif subject == 'transmission.in.right':
-                await commands.put(Command(COMMAND_RIGHT, PRIORITY_MANUAL))
-
-        if event.category == PERIODIC_EVENT:
-            print(event.data)
+    await eq.run()
 
 def cancel():
     for t in asyncio.all_tasks():
@@ -135,7 +127,7 @@ if __name__ == '__main__':
     parser.add_argument('--debug', action='store_true')
 
     args = parser.parse_args()
-    format = '[%(asctime)s] [%(name)s]: %(message)s'
+    format = '%(asctime)s [%(name)s]: %(message)s'
     datefmt = '%Y-%m-%d %H:%M:%S'
 
     if args.debug:
