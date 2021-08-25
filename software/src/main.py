@@ -78,7 +78,7 @@ async def main():
     await nats.connect('localhost:4222')
 
     async def uart_event_in(event_queue, data, user_data):
-        logging.debug(f'Received {data}')
+        await event_queue.insert_async('NATS_EVENT_OUT', data)
 
     async def uart_event_out(event_queue, data, user_data):
         uart.write(data.encode())
@@ -93,7 +93,7 @@ async def main():
             await commands.put(Command(COMMAND_RIGHT, PRIORITY_MANUAL))
 
     async def nats_event_out(event_queue, data, user_data):
-        nats.publish('thingy.out', data)
+        await nats.publish('thingy.out', data)
 
     async def periodic_event(event_queue, data, user_data):
         print(data)
